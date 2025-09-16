@@ -27,8 +27,7 @@ redis.on('end', () => {
 });
 
 export const voteKeys = {
-    totalVotes: (toolId: string) => `vote:tool:${toolId}:total`,
-    userVoted: (userId: string, toolId: string) => `vote:user:${userId}:tool:${toolId}`,
-    activeToolsSet: 'vote:toolIds:active',
-  };
-  
+  votes: (appId: string) => `votes:${appId}`,
+  userVote: (userId: string, appId: string) => `user:${userId}:vote:${appId}`,
+  launchApps: 'launch:today:apps'
+};

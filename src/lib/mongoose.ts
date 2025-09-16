@@ -1,4 +1,5 @@
-import mongoose from 'mongoose';
+// This file is deprecated - the Voting API now uses native MongoDB driver
+// See src/lib/mongodb.ts for the current database connection
 
 const MONGODB_URI = process.env.MONGODB_URI!;
 const DATABASE = process.env.MONGODB_DATABASE;
@@ -11,24 +12,9 @@ if (!DATABASE) {
 }
 
 export async function connectToMongo() {
-  if (mongoose.connection.readyState === 1) {
-    return;
-  }
-
-  try {
-    await mongoose.connect(MONGODB_URI, {
-      dbName: DATABASE,
-    });
-    console.log('✅ Connected to MongoDB');
-  } catch (err) {
-    console.error('❌ Failed to connect to MongoDB', err);
-    throw err;
-  }
+  throw new Error('Mongoose connection deprecated. Use connectToDatabase() from @/lib/mongodb instead.');
 }
 
-export function getDefaultConnection(): mongoose.Connection {
-  if (mongoose.connection.readyState !== 1) {
-    throw new Error('MongoDB default connection is not ready. Call connectToMongo() first.');
-  }
-  return mongoose.connection;
+export function getDefaultConnection() {
+  throw new Error('Mongoose connection deprecated. Use connectToDatabase() from @/lib/mongodb instead.');
 }

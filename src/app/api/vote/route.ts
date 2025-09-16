@@ -2,6 +2,7 @@ import { decryptVotingToken } from '@/lib/decryption';
 import { redis, voteKeys } from '@/lib/redis';
 import { NextRequest, NextResponse } from 'next/server';
 import { buildCorsHeaders, parseAllowedOrigins, resolveAllowedOrigin } from '@/utils/api';
+import { getLaunchStatus, isAppInActiveLaunch } from '@/lib/launches';
 
 const getUserIdFromQuery = (req: NextRequest): string | null => {
   try {
@@ -31,8 +32,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing itemId' }, { status: 400, headers: buildCorsHeaders(origin) });
   }
 
-  const userKey = voteKeys.userVoted(userId, toolId);
-  const totalKey = voteKeys.totalVotes(toolId);
+  // Check launch status before allowing votes
+  const launchStatus = await getLaunchStatus();
+  
+  if (!launchStatus.hasActiveLaunch) {
+    return NextResponse.json({ code: 'NO_ACTIVE_LAUNCH' }, { status: 400, headers: buildCorsHeaders(origin) });
+  }
+  
+  if (launchStatus.isFlushingInProgress) {
+    return NextResponse.json({ code: 'VOTING_CLOSED' }, { status: 400, headers: buildCorsHeaders(origin) });
+  }
+  
+  // Check if app is eligible for voting
+  const isInActiveLaunch = await isAppInActiveLaunch(toolId);
+  if (!isInActiveLaunch) {
+    return NextResponse.json({ code: 'APP_NOT_ELIGIBLE' }, { status: 400, headers: buildCorsHeaders(origin) });
+  }
+
+  const userKey = voteKeys.userVote(userId, toolId);
+  const totalKey = voteKeys.votes(toolId);
 
   const alreadyVoted = await redis.exists(userKey);
 
@@ -53,9 +71,6 @@ export async function GET(req: NextRequest) {
     const newCount = Math.max(0, currentCount - 1);
     await redis.set(totalKey, newCount.toString());
     await redis.del(userKey);
-    if (newCount === 0) {
-      await redis.srem(voteKeys.activeToolsSet, toolId);
-    }
     console.log('[Vote][UNVOTE][ok]', { userId, toolId, before: currentCount, after: newCount });
     return NextResponse.json({ count: newCount }, { status: 200, headers: buildCorsHeaders(origin) });
   }
@@ -67,12 +82,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Already voted', count: currentCount }, { status: 409, headers: buildCorsHeaders(origin) });
   }
 
-  // ✅ Vote
+  // Vote
   const before = parseInt((await redis.get(totalKey)) || '0', 10);
   await redis.incr(totalKey);
-  await redis.set(userKey, '1', 'EX', 7 * 24 * 60 * 60); // 7 days
-  await redis.sadd(voteKeys.activeToolsSet, toolId);
-
+  await redis.set(userKey, '1', 'EX', 25 * 60 * 60); // 25 hours
+  
   const totalAfter = await redis.get(totalKey);
   const count = parseInt(totalAfter || '0', 10);
   console.log('[Vote][VOTE][ok]', { userId, toolId, before, after: count });
@@ -89,4 +103,3 @@ export function OPTIONS(req: NextRequest) {
     headers: buildCorsHeaders(origin),
   });
 }
-

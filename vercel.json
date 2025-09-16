@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "voting-api",
+  "crons": [
+    {
+      "path": "/api/cron/manage-launches",
+      "schedule": "0 */6 * * *"
+    }
+  ]
+}

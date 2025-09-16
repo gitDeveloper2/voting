@@ -1,5 +1,5 @@
-import mongoose, { Connection, Model, Schema } from 'mongoose';
-import { getDefaultConnection } from '@/lib/mongoose';
+// This file is deprecated - the Voting API now uses native MongoDB driver with launches collection
+// Vote data is now stored in the launches collection managed by src/lib/launches.ts
 
 export interface VotingDayToolCounts {
   toolId: string;
@@ -13,26 +13,6 @@ export interface VotingDayDoc {
   source: 'redis-snapshot' | 'recovered' | 'manual';
 }
 
-let VotingDayModel: Model<VotingDayDoc> | null = null;
-
-export async function getVotingDayModel(): Promise<Model<VotingDayDoc>> {
-  if (VotingDayModel) return VotingDayModel;
-
-  const conn: Connection = getDefaultConnection();
-
-  const votingDaySchema = new Schema<VotingDayDoc>({
-    day: { type: String, required: true, index: true, unique: true },
-    counts: [
-      {
-        toolId: { type: String, required: true },
-        votes: { type: Number, required: true },
-      },
-    ],
-    closedAt: { type: Date, required: true },
-    source: { type: String, enum: ['redis-snapshot', 'recovered', 'manual'], default: 'redis-snapshot' },
-  }, { timestamps: true });
-
-  VotingDayModel = (conn.models.VotingDay as Model<VotingDayDoc>) || conn.model<VotingDayDoc>('VotingDay', votingDaySchema);
-  return VotingDayModel;
+export async function getVotingDayModel() {
+  throw new Error('VotingDay model deprecated. Vote data is now stored in launches collection via src/lib/launches.ts');
 }
-
