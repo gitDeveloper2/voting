@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { createLaunch, getTodaysLaunchApps, flushLaunchVotes } from '@/lib/launches';
 
-// Morning cron job to create daily launch
-// This endpoint is protected by Vercel's cron secret
+// DEPRECATED: This endpoint has been replaced by /api/cron/daily-launch-cycle
+// The new merged system handles both creation and flushing in a single atomic operation
+// This endpoint is kept for backward compatibility but should not be used
 
 export const dynamic = 'force-dynamic';
 

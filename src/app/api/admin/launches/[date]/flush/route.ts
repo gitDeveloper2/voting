@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { flushLaunchVotes, getLaunchByDate } from '@/lib/launches';
+import { revalidateLaunchPage } from '@/lib/revalidation';
 
 export async function POST(
   request: Request,
   { params }: { params: { date: string } }
 ) {
   // Verify admin access
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'ADMIN') {
+  const session = await auth();
+  if (!session) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
@@ -42,9 +42,17 @@ export async function POST(
       throw new Error(result.message || 'Failed to flush launch');
     }
 
-    // Return the updated launch
+    // Call revalidation API after successful vote flushing
+    await revalidateLaunchPage();
+
+    // Return the flush result with updated launch info
     const updatedLaunch = await getLaunchByDate(date);
-    return NextResponse.json(updatedLaunch);
+    return NextResponse.json({
+      success: true,
+      message: result.message,
+      voteCounts: result.voteCounts,
+      launch: updatedLaunch
+    });
     
   } catch (error) {
     console.error(`Failed to flush launch ${date}:`, error);

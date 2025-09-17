@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { FlushStatus } from '@/components/flush-status';
 import { Vote, TrendingUp, Users, Clock, RefreshCw } from 'lucide-react';
 import { ObjectId } from 'mongodb';
 
@@ -151,6 +152,18 @@ export default async function VotingPage() {
           </Card>
         </div>
       )}
+
+      {/* Flush Status */}
+      <FlushStatus 
+        activeLaunch={activeLaunch ? {
+          _id: activeLaunch._id?.toString(),
+          date: activeLaunch.date,
+          status: activeLaunch.status,
+          apps: activeLaunch.apps,
+          createdAt: activeLaunch.createdAt.toISOString()
+        } : null} 
+        votingStats={stats} 
+      />
 
       {/* Voting Results Table */}
       {activeLaunch && (

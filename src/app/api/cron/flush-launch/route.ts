@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { flushLaunchVotes, getActiveLaunch } from '@/lib/launches';
+import { revalidateLaunchPage } from '@/lib/revalidation';
 
-// Evening cron job to flush votes and mark launch as complete
-// This endpoint is protected by Vercel's cron secret
+// DEPRECATED: This endpoint has been replaced by /api/cron/daily-launch-cycle
+// The new merged system handles both creation and flushing in a single atomic operation
+// This endpoint is kept for backward compatibility but should not be used
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +32,11 @@ export async function GET() {
     
     // Flush the active launch votes
     const flushResult = await flushLaunchVotes(activeLaunch.date);
+    
+    // Call revalidation API after successful vote flushing
+    if (flushResult.success) {
+      await revalidateLaunchPage();
+    }
     
     return NextResponse.json({
       success: flushResult.success,

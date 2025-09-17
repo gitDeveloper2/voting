@@ -7,6 +7,7 @@ import { getActiveLaunch } from '@/lib/launches';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { FlushStatus } from '@/components/flush-status';
 import { 
   Rocket, 
   Vote, 
@@ -239,6 +240,18 @@ export default async function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Flush Status */}
+      <FlushStatus 
+        activeLaunch={activeLaunch ? {
+          _id: activeLaunch._id?.toString(),
+          date: activeLaunch.date,
+          status: activeLaunch.status,
+          apps: activeLaunch.apps,
+          createdAt: activeLaunch.createdAt.toISOString()
+        } : null} 
+        votingStats={votingStats} 
+      />
 
       {/* Recent Activity */}
       {activeLaunch && (

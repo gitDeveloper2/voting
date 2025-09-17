@@ -3,8 +3,8 @@
   "name": "voting-api",
   "crons": [
     {
-      "path": "/api/cron/manage-launches",
-      "schedule": "0 */6 * * *"
+      "path": "/api/cron/daily-launch-cycle",
+      "schedule": "0 6 * * *"
     }
   ]
 }

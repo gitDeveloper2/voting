@@ -233,30 +233,32 @@ export default async function ConfigPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50 border-green-200">
               <div>
-                <h4 className="font-medium">Create Daily Launch</h4>
-                <p className="text-sm text-muted-foreground">
-                  Creates new launch and flushes previous day's votes
+                <h4 className="font-medium text-green-800">Daily Launch Cycle</h4>
+                <p className="text-sm text-green-600">
+                  Atomic operation: Flush previous day & create new launch
                 </p>
+                <div className="mt-2 text-xs text-green-600">
+                  <div>• Flushes active launch votes to MongoDB</div>
+                  <div>• Creates new launch with scheduled apps</div>
+                  <div>• Triggers cache revalidation</div>
+                </div>
               </div>
               <div className="text-right">
-                <Badge variant="secondary">Morning</Badge>
-                <p className="text-xs text-muted-foreground mt-1">/api/cron/create-launch</p>
+                <Badge className="bg-green-100 text-green-800">Daily 6 AM UTC</Badge>
+                <p className="text-xs text-green-600 mt-1">/api/cron/daily-launch-cycle</p>
               </div>
             </div>
             
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div>
-                <h4 className="font-medium">Flush Launch Votes</h4>
-                <p className="text-sm text-muted-foreground">
-                  Transfers votes from Redis to MongoDB and marks launch complete
-                </p>
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-800 text-sm font-medium">
+                <CheckCircle className="h-4 w-4" />
+                Merged Cron System Active
               </div>
-              <div className="text-right">
-                <Badge variant="secondary">Evening</Badge>
-                <p className="text-xs text-muted-foreground mt-1">/api/cron/flush-launch</p>
-              </div>
+              <p className="text-xs text-blue-600 mt-1">
+                Replaced separate create/flush crons with single atomic operation for better reliability
+              </p>
             </div>
           </div>
         </CardContent>
