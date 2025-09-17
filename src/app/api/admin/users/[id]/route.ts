@@ -6,27 +6,23 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { hash } from 'bcryptjs';
 
 // GET /api/admin/users/[id] - Get a single user
+// GET /api/admin/users/[id] - Get a single user
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     
     if (!session?.user || session.user.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = params;
-    
+    // ✅ Await params
+    const { id } = await params;
+
     if (!ObjectId.isValid(id)) {
-      return NextResponse.json(
-        { error: 'Invalid user ID' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
@@ -36,30 +32,25 @@ export async function GET(
     );
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json(user);
   } catch (error) {
     console.error('Error fetching user:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch user' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
   }
 }
+
 
 // PUT /api/admin/users/[id] - Update a user
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user || session.user.role !== 'admin') {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -67,8 +58,8 @@ export async function PUT(
       );
     }
 
-    const { id } = params;
-    
+    const { id } = await params;  // ✅ now consistent with your other routes
+
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
         { error: 'Invalid user ID' },
@@ -80,10 +71,10 @@ export async function PUT(
     const { name, email, password, role } = data;
 
     const { db } = await connectToDatabase();
-    const updateData: any = { 
-      name, 
+    const updateData: any = {
+      name,
       role,
-      updatedAt: new Date() 
+      updatedAt: new Date(),
     };
 
     // Only update password if provided
@@ -93,9 +84,9 @@ export async function PUT(
 
     // Check if email is being updated and if it's already taken
     if (email) {
-      const existingUser = await db.collection('users').findOne({ 
+      const existingUser = await db.collection('users').findOne({
         email,
-        _id: { $ne: new ObjectId(id) }
+        _id: { $ne: new ObjectId(id) },
       });
 
       if (existingUser) {
@@ -135,14 +126,15 @@ export async function PUT(
   }
 }
 
+
 // DELETE /api/admin/users/[id] - Delete a user
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user || session.user.role !== 'admin') {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -150,8 +142,8 @@ export async function DELETE(
       );
     }
 
-    const { id } = params;
-    
+    const { id } = await params;  // ✅ await params like in GET & PUT
+
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
         { error: 'Invalid user ID' },
@@ -186,3 +178,4 @@ export async function DELETE(
     );
   }
 }
+

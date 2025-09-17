@@ -88,7 +88,7 @@ export function UserForm({ initialData, isEditing = false, onSuccess }: UserForm
 
       toast({
         title: 'Success',
-        description: isEditing ? 'User updated successfully.' : 'User created successfully.',
+        description: isEditing ? "User updated successfully." : "User created successfully.",
       });
 
       if (onSuccess) {

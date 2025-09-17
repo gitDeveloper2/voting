@@ -72,14 +72,15 @@ async function getAppsData(page: number = 1, limit: number = 20) {
   };
 }
 
-export default async function AppsPage({ searchParams }: { searchParams: { page?: string } }) {
+export default async function AppsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const session = await auth();
   
   if (!session) {
     redirect('/login');
   }
 
-  const currentPage = parseInt(searchParams.page || '1', 10);
+  const resolvedSearchParams = await searchParams;
+  const currentPage = parseInt(resolvedSearchParams.page || '1', 10);
   const { apps, stats, pagination } = await getAppsData(currentPage, 10);
 
   const getStatusBadge = (app: any) => {
@@ -89,7 +90,7 @@ export default async function AppsPage({ searchParams }: { searchParams: { page?
     if (app.launchDate) {
       const today = new Date().toISOString().split('T')[0];
       if (app.launchDate === today) {
-        return <Badge variant="warning">Today's Launch</Badge>;
+        return <Badge variant="warning">Today&apos;s Launch</Badge>;
       }
       if (app.launchDate > today) {
         return <Badge variant="info">Scheduled</Badge>;

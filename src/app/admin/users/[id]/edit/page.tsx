@@ -8,7 +8,7 @@ import { UserForm } from '@/components/user-form';
 export default async function EditUserPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
   
@@ -16,13 +16,14 @@ export default async function EditUserPage({
     redirect('/login');
   }
 
-  if (!ObjectId.isValid(params.id)) {
+  const resolvedParams = await params;
+  if (!ObjectId.isValid(resolvedParams.id)) {
     notFound();
   }
 
   const { db } = await connectToDatabase();
   const user = await db.collection('users').findOne(
-    { _id: new ObjectId(params.id) },
+    { _id: new ObjectId(resolvedParams.id) },
     { projection: { password: 0 } }
   );
 
