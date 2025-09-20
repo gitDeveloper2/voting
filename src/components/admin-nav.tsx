@@ -4,19 +4,33 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Rocket, 
-  Vote, 
-  BarChart3, 
-  Settings, 
-  LogOut,
+import {
+  AppBar,
+  Box,
+  Button,
+  Drawer,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Toolbar,
+  Typography,
+  useTheme,
+  useMediaQuery
+} from '@mui/material';
+import {
+  Dashboard as LayoutDashboard,
+  People as Users,
+  Rocket,
+  HowToVote as Vote,
+  BarChart as BarChart3,
+  Settings,
+  Logout as LogOut,
   Menu,
-  X
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+  Close as X
+} from '@mui/icons-material';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -29,102 +43,151 @@ const navigation = [
 export function AdminNav() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleSignOut = () => {
     signOut({ callbackUrl: '/login' });
   };
 
+  const drawerWidth = 256;
+
   return (
     <>
-      {/* Mobile sidebar */}
-      <div className={cn(
-        "fixed inset-0 flex z-40 md:hidden",
-        sidebarOpen ? "block" : "hidden"
-      )}>
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-        <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white shadow-xl">
-          <div className="absolute top-0 right-0 -mr-12 pt-2">
-            <button
-              type="button"
-              className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-              onClick={() => setSidebarOpen(false)}
+      {/* Mobile App Bar */}
+      {isMobile && (
+        <AppBar position="fixed" sx={{ zIndex: theme.zIndex.drawer + 1 }}>
+          <Toolbar>
+            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+              Voting API Admin
+            </Typography>
+            <IconButton
+              color="inherit"
+              edge="end"
+              onClick={() => setSidebarOpen(true)}
             >
-              <X className="h-6 w-6 text-white" />
-            </button>
-          </div>
-          <SidebarContent pathname={pathname} onSignOut={handleSignOut} />
-        </div>
-      </div>
+              <Menu />
+            </IconButton>
+          </Toolbar>
+        </AppBar>
+      )}
 
-      {/* Desktop sidebar */}
-      <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30">
-        <div className="flex-1 flex flex-col min-h-0 border-r border-gray-200 bg-white shadow-sm">
-          <SidebarContent pathname={pathname} onSignOut={handleSignOut} />
-        </div>
-      </div>
+      {/* Mobile Drawer */}
+      <Drawer
+        variant="temporary"
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': {
+            boxSizing: 'border-box',
+            width: drawerWidth,
+          },
+        }}
+      >
+        <SidebarContent pathname={pathname} onSignOut={handleSignOut} />
+      </Drawer>
 
-      {/* Mobile menu button */}
-      <div className="md:hidden">
-        <div className="flex items-center justify-between bg-white border-b border-gray-200 px-4 py-2">
-          <h1 className="text-lg font-semibold text-gray-900">Voting API Admin</h1>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-6 w-6" />
-          </button>
-        </div>
-      </div>
+      {/* Desktop Drawer */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          '& .MuiDrawer-paper': {
+            boxSizing: 'border-box',
+            width: drawerWidth,
+            borderRight: '1px solid',
+            borderColor: 'divider',
+          },
+        }}
+      >
+        <SidebarContent pathname={pathname} onSignOut={handleSignOut} />
+      </Drawer>
     </>
   );
 }
 
 function SidebarContent({ pathname, onSignOut }: { pathname: string; onSignOut: () => void }) {
+  const theme = useTheme();
+
   return (
-    <>
-      <div className="flex-1 flex flex-col pt-6 pb-4 overflow-y-auto">
-        <div className="flex items-center flex-shrink-0 px-6 mb-8">
-          <h1 className="text-xl font-bold text-gray-900">Voting API</h1>
-        </div>
-        <nav className="flex-1 px-4 space-y-2">
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+          Voting API
+        </Typography>
+      </Box>
+
+      {/* Navigation */}
+      <Box sx={{ flex: 1, overflow: 'auto' }}>
+        <List sx={{ px: 2, py: 1 }}>
           {navigation.map((item) => {
             const isActive = pathname === item.href || 
               (item.href !== '/admin' && pathname.startsWith(item.href));
             
             return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  "group flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors",
-                  isActive
-                    ? "bg-indigo-100 text-indigo-900 border border-indigo-200"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                )}
-              >
-                <item.icon
-                  className={cn(
-                    "mr-3 flex-shrink-0 h-5 w-5",
-                    isActive ? "text-indigo-500" : "text-gray-400 group-hover:text-gray-500"
-                  )}
-                />
-                {item.name}
-              </Link>
+              <ListItem key={item.name} disablePadding sx={{ mb: 0.5 }}>
+                <ListItemButton
+                  component={Link}
+                  href={item.href}
+                  sx={{
+                    borderRadius: 2,
+                    py: 1.5,
+                    px: 2,
+                    backgroundColor: isActive ? 'primary.main' : 'transparent',
+                    color: isActive ? 'primary.contrastText' : 'text.primary',
+                    '&:hover': {
+                      backgroundColor: isActive 
+                        ? 'primary.dark' 
+                        : theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100',
+                    },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      color: isActive ? 'primary.contrastText' : 'text.secondary',
+                      minWidth: 40,
+                    }}
+                  >
+                    <item.icon />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={item.name}
+                    primaryTypographyProps={{
+                      fontSize: '0.875rem',
+                      fontWeight: isActive ? 600 : 500,
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
             );
           })}
-        </nav>
-      </div>
-      <div className="flex-shrink-0 flex border-t border-gray-200 p-6">
+        </List>
+      </Box>
+
+      {/* Sign Out */}
+      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', p: 2 }}>
         <Button
-          variant="ghost"
+          variant="text"
           onClick={onSignOut}
-          className="w-full justify-start text-gray-600 hover:text-gray-900 px-4 py-3"
+          startIcon={<LogOut />}
+          fullWidth
+          sx={{
+            justifyContent: 'flex-start',
+            color: 'text.secondary',
+            py: 1.5,
+            px: 2,
+            borderRadius: 2,
+            '&:hover': {
+              backgroundColor: theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100',
+            },
+          }}
         >
-          <LogOut className="mr-3 h-5 w-5" />
           Sign out
         </Button>
-      </div>
-    </>
+      </Box>
+    </Box>
   );
 }

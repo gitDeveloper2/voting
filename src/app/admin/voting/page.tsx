@@ -3,13 +3,33 @@ import { auth } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import { redis, voteKeys } from '@/lib/redis';
 import { getActiveLaunch } from '@/lib/launches';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { FlushStatus } from '@/components/flush-status';
-import { Vote, TrendingUp, Users, Clock, RefreshCw } from 'lucide-react';
 import { ObjectId } from 'mongodb';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  Grid,
+  LinearProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+  Paper
+} from '@mui/material';
+import {
+  HowToVote as Vote,
+  TrendingUp,
+  People as Users,
+  Schedule as Clock,
+  Refresh as RefreshCw
+} from '@mui/icons-material';
 
 async function getVotingData() {
   const activeLaunch = await getActiveLaunch();
@@ -74,83 +94,140 @@ export default async function VotingPage() {
   const { activeLaunch, apps, totalVotes, stats } = await getVotingData();
 
   return (
-    <>
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Voting Dashboard</h2>
-          <p className="text-muted-foreground">
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        mb: 4 
+      }}>
+        <Box>
+          <Typography variant="h4" component="h2" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Voting Dashboard
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
             Monitor real-time voting activity and results
-          </p>
-        </div>
-        <Button variant="outline" size="sm">
-          <RefreshCw className="mr-2 h-4 w-4" />
+          </Typography>
+        </Box>
+        <Button variant="outlined" size="small" startIcon={<RefreshCw />}>
           Refresh
         </Button>
-      </div>
+      </Box>
 
       {/* Launch Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Vote className="h-5 w-5" />
-            Launch Status
-          </CardTitle>
-        </CardHeader>
+      <Card sx={{ mb: 4 }}>
+        <CardHeader
+          title={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Vote />
+              <Typography variant="h6">Launch Status</Typography>
+            </Box>
+          }
+        />
         <CardContent>
           {activeLaunch ? (
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Active Launch</p>
-                <p className="text-lg font-semibold">{new Date(activeLaunch.date).toLocaleDateString()}</p>
-              </div>
-              <Badge variant="success" className="bg-green-100 text-green-800">
-                {activeLaunch.status}
-              </Badge>
-            </div>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Active Launch
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {new Date(activeLaunch.date).toLocaleDateString()}
+                </Typography>
+              </Box>
+              <Chip 
+                label={activeLaunch.status} 
+                color="success" 
+                variant="outlined"
+              />
+            </Box>
           ) : (
-            <div className="text-center py-8">
-              <Vote className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-lg font-medium text-muted-foreground">No Active Launch</p>
-              <p className="text-sm text-muted-foreground">Create a launch to start voting</p>
-            </div>
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Vote sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 500, mb: 1 }}>
+                No Active Launch
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Create a launch to start voting
+              </Typography>
+            </Box>
           )}
         </CardContent>
       </Card>
 
       {/* Stats Cards */}
       {activeLaunch && (
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Votes</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalVotes}</div>
-              <p className="text-xs text-muted-foreground">Current voting session</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Apps</CardTitle>
-              <Vote className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.activeApps}</div>
-              <p className="text-xs text-muted-foreground">Apps in current launch</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Participants</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.participatingUsers}</div>
-              <p className="text-xs text-muted-foreground">Unique voters</p>
-            </CardContent>
-          </Card>
-        </div>
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardHeader
+                title={
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Total Votes
+                    </Typography>
+                    <TrendingUp fontSize="small" color="action" />
+                  </Box>
+                }
+                sx={{ pb: 1 }}
+              />
+              <CardContent sx={{ pt: 0 }}>
+                <Typography variant="h4" component="div" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  {stats.totalVotes}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Current voting session
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardHeader
+                title={
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Active Apps
+                    </Typography>
+                    <Vote fontSize="small" color="action" />
+                  </Box>
+                }
+                sx={{ pb: 1 }}
+              />
+              <CardContent sx={{ pt: 0 }}>
+                <Typography variant="h4" component="div" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  {stats.activeApps}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Apps in current launch
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardHeader
+                title={
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Participants
+                    </Typography>
+                    <Users fontSize="small" color="action" />
+                  </Box>
+                }
+                sx={{ pb: 1 }}
+              />
+              <CardContent sx={{ pt: 0 }}>
+                <Typography variant="h4" component="div" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  {stats.participatingUsers}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Unique voters
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
       )}
 
       {/* Flush Status */}
@@ -168,76 +245,99 @@ export default async function VotingPage() {
       {/* Voting Results Table */}
       {activeLaunch && (
         <Card>
-          <CardHeader>
-            <CardTitle>Real-time Voting Results</CardTitle>
-          </CardHeader>
+          <CardHeader
+            title={
+              <Typography variant="h6">Real-time Voting Results</Typography>
+            }
+          />
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>App Name</TableHead>
-                  <TableHead>Current Votes</TableHead>
-                  <TableHead>Total Votes (All Time)</TableHead>
-                  <TableHead>Vote Share</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {apps.length === 0 ? (
+            <TableContainer component={Paper} elevation={0}>
+              <Table>
+                <TableHead>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      No apps in current launch
-                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>App Name</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Current Votes</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Total Votes (All Time)</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Vote Share</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
                   </TableRow>
-                ) : (
-                  apps.map((app: any, index: number) => {
-                    const voteShare = totalVotes > 0 ? ((app.currentVotes / totalVotes) * 100).toFixed(1) : '0';
-                    return (
-                      <TableRow key={app._id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {index === 0 && app.currentVotes > 0 && (
-                              <Badge variant="default" className="text-xs">
-                                #1
-                              </Badge>
-                            )}
-                            {app.name || `App ${app._id.slice(-6)}`}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg font-semibold">{app.currentVotes}</span>
-                            {app.currentVotes > 0 && (
-                              <TrendingUp className="h-4 w-4 text-green-500" />
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{app.totalVotes}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-blue-600 h-2 rounded-full" 
-                                style={{ width: `${voteShare}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-sm">{voteShare}%</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" className="h-8">
-                            View Details
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                </TableHead>
+                <TableBody>
+                  {apps.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                        <Typography color="text.secondary">
+                          No apps in current launch
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    apps.map((app: any, index: number) => {
+                      const voteShare = totalVotes > 0 ? ((app.currentVotes / totalVotes) * 100).toFixed(1) : '0';
+                      return (
+                        <TableRow key={app._id} hover>
+                          <TableCell sx={{ fontWeight: 500 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              {index === 0 && app.currentVotes > 0 && (
+                                <Chip 
+                                  label="#1" 
+                                  size="small" 
+                                  color="primary"
+                                  variant="outlined"
+                                />
+                              )}
+                              <Typography variant="body2">
+                                {app.name || `App ${app._id.slice(-6)}`}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                {app.currentVotes}
+                              </Typography>
+                              {app.currentVotes > 0 && (
+                                <TrendingUp fontSize="small" color="success" />
+                              )}
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {app.totalVotes}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={parseFloat(voteShare)}
+                                sx={{ 
+                                  width: 64, 
+                                  height: 8,
+                                  borderRadius: 1,
+                                  backgroundColor: 'grey.200'
+                                }}
+                              />
+                              <Typography variant="body2">
+                                {voteShare}%
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Button variant="outlined" size="small">
+                              View Details
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </CardContent>
         </Card>
       )}
-    </>
+    </Box>
   );
 }

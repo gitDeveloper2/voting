@@ -3,9 +3,24 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { LogOut, Home, BarChart2, Settings, Users } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import {
+  Box,
+  Button,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography
+} from '@mui/material';
+import {
+  Logout as LogOut,
+  Home,
+  BarChart as BarChart2,
+  Settings,
+  People as Users
+} from '@mui/icons-material';
 
 type NavItem = {
   name: string;
@@ -44,44 +59,68 @@ export function Sidebar() {
   };
 
   return (
-    <div className="hidden border-r bg-muted/40 md:block">
-      <div className="flex h-full max-h-screen flex-col gap-2">
-        <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <span className="">Voting System</span>
-          </Link>
-        </div>
-        <div className="flex-1">
-          <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+    <Drawer
+      variant="permanent"
+      sx={{
+        display: { xs: 'none', md: 'block' },
+        '& .MuiDrawer-paper': {
+          boxSizing: 'border-box',
+          width: 240,
+          borderRight: '1px solid',
+          borderColor: 'divider',
+        },
+      }}
+    >
+      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="h6" component={Link} href="/" sx={{ fontWeight: 600, textDecoration: 'none', color: 'inherit' }}>
+            Voting System
+          </Typography>
+        </Box>
+        
+        <Box sx={{ flex: 1 }}>
+          <List sx={{ px: 1 }}>
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-                    isActive && 'bg-muted text-primary'
-                  )}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.name}
-                </Link>
+                <ListItem key={item.name} disablePadding>
+                  <ListItemButton
+                    component={Link}
+                    href={item.href}
+                    sx={{
+                      borderRadius: 2,
+                      mx: 1,
+                      my: 0.5,
+                      backgroundColor: isActive ? 'primary.main' : 'transparent',
+                      color: isActive ? 'primary.contrastText' : 'text.primary',
+                      '&:hover': {
+                        backgroundColor: isActive ? 'primary.dark' : 'action.hover',
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
+                      <item.icon />
+                    </ListItemIcon>
+                    <ListItemText primary={item.name} />
+                  </ListItemButton>
+                </ListItem>
               );
             })}
-          </nav>
-        </div>
-        <div className="mt-auto p-4">
+          </List>
+        </Box>
+        
+        <Box sx={{ p: 2 }}>
           <Button
             onClick={handleLogout}
-            variant="outline"
-            className="w-full justify-start gap-2"
+            variant="outlined"
+            fullWidth
+            startIcon={<LogOut />}
+            sx={{ justifyContent: 'flex-start' }}
           >
-            <LogOut className="h-4 w-4" />
             Logout
           </Button>
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Drawer>
   );
 }

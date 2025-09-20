@@ -1,6 +1,7 @@
 import { AdminNav } from '@/components/admin-nav';
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { Box } from '@mui/material';
 
 export default async function AdminLayout({
   children,
@@ -15,15 +16,22 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <Box sx={{ minHeight: '100vh', bgcolor: 'grey.50' }}>
       <AdminNav />
-      <div className="md:pl-64">
-        <div className="p-6 sm:p-8 max-w-7xl mx-auto min-h-screen">
-          <div className="space-y-6">
+      {/* Main content with proper sidebar spacing */}
+      <Box
+        sx={{
+          ml: { xs: 0, md: '256px' }, // 256px matches the drawer width
+          transition: 'margin 0.3s ease-in-out',
+          minHeight: '100vh',
+        }}
+      >
+        <Box sx={{ p: { xs: 3, sm: 4 }, maxWidth: '1200px', mx: 'auto' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {children}
-          </div>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }

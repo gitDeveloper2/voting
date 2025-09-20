@@ -4,21 +4,29 @@ import { auth } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import { redis, voteKeys } from '@/lib/redis';
 import { getActiveLaunch } from '@/lib/launches';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { FlushStatus } from '@/components/flush-status';
-import { 
-  Rocket, 
-  Vote, 
-  TrendingUp, 
-  Users, 
-  Database,
-  Activity,
-  Calendar,
-  BarChart3,
-  ArrowRight
-} from 'lucide-react';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  Grid,
+  Typography,
+  useTheme
+} from '@mui/material';
+import {
+  Rocket,
+  HowToVote as Vote,
+  TrendingUp,
+  People as Users,
+  Storage as Database,
+  Timeline as Activity,
+  CalendarToday as Calendar,
+  BarChart as BarChart3,
+  ArrowForward as ArrowRight
+} from '@mui/icons-material';
 
 async function getDashboardData() {
   const { db } = await connectToDatabase();
@@ -92,154 +100,298 @@ export default async function AdminDashboard() {
   const { launchStats, activeLaunch, votingStats, recentLaunches } = await getDashboardData();
 
   return (
-    <>
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Voting System Dashboard</h2>
-          <p className="text-muted-foreground">
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        mb: 4 
+      }}>
+        <Box>
+          <Typography variant="h4" component="h2" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Voting System Dashboard
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
             Overview of your voting system and launch management
-          </p>
-        </div>
-      </div>
+          </Typography>
+        </Box>
+      </Box>
 
       {/* Launch Statistics */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Launches</CardTitle>
-            <Rocket className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{launchStats.totalLaunches}</div>
-            <p className="text-xs text-muted-foreground">All time launches</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Launches</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{launchStats.activeLaunches}</div>
-            <p className="text-xs text-muted-foreground">Currently running</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{launchStats.flushedLaunches}</div>
-            <p className="text-xs text-muted-foreground">Successfully completed</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ height: '100%' }}>
+            <CardHeader
+              title={
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Total Launches
+                  </Typography>
+                  <Rocket fontSize="small" color="action" />
+                </Box>
+              }
+              sx={{ pb: 1 }}
+            />
+            <CardContent sx={{ pt: 0 }}>
+              <Typography variant="h4" component="div" sx={{ fontWeight: 600, mb: 0.5 }}>
+                {launchStats.totalLaunches}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                All time launches
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ height: '100%' }}>
+            <CardHeader
+              title={
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Active Launches
+                  </Typography>
+                  <Activity fontSize="small" color="action" />
+                </Box>
+              }
+              sx={{ pb: 1 }}
+            />
+            <CardContent sx={{ pt: 0 }}>
+              <Typography variant="h4" component="div" sx={{ fontWeight: 600, mb: 0.5 }}>
+                {launchStats.activeLaunches}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Currently running
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ height: '100%' }}>
+            <CardHeader
+              title={
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Completed
+                  </Typography>
+                  <BarChart3 fontSize="small" color="action" />
+                </Box>
+              }
+              sx={{ pb: 1 }}
+            />
+            <CardContent sx={{ pt: 0 }}>
+              <Typography variant="h4" component="div" sx={{ fontWeight: 600, mb: 0.5 }}>
+                {launchStats.flushedLaunches}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Successfully completed
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Current Voting Activity */}
       {activeLaunch ? (
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Current Votes</CardTitle>
-              <Vote className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{votingStats.totalVotes}</div>
-              <p className="text-xs text-muted-foreground">Active voting session</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Apps in Launch</CardTitle>
-              <Database className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{votingStats.activeApps}</div>
-              <p className="text-xs text-muted-foreground">Eligible for voting</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Participants</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{votingStats.participatingUsers}</div>
-              <p className="text-xs text-muted-foreground">Unique voters</p>
-            </CardContent>
-          </Card>
-        </div>
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardHeader
+                title={
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Current Votes
+                    </Typography>
+                    <Vote fontSize="small" color="action" />
+                  </Box>
+                }
+                sx={{ pb: 1 }}
+              />
+              <CardContent sx={{ pt: 0 }}>
+                <Typography variant="h4" component="div" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  {votingStats.totalVotes}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Active voting session
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardHeader
+                title={
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Apps in Launch
+                    </Typography>
+                    <Database fontSize="small" color="action" />
+                  </Box>
+                }
+                sx={{ pb: 1 }}
+              />
+              <CardContent sx={{ pt: 0 }}>
+                <Typography variant="h4" component="div" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  {votingStats.activeApps}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Eligible for voting
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardHeader
+                title={
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Participants
+                    </Typography>
+                    <Users fontSize="small" color="action" />
+                  </Box>
+                }
+                sx={{ pb: 1 }}
+              />
+              <CardContent sx={{ pt: 0 }}>
+                <Typography variant="h4" component="div" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  {votingStats.participatingUsers}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Unique voters
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
       ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Vote className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Active Launch</h3>
-            <p className="text-muted-foreground text-center mb-4">
+        <Card sx={{ mb: 4 }}>
+          <CardContent sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            py: 6 
+          }}>
+            <Vote sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+            <Typography variant="h6" component="h3" sx={{ fontWeight: 500, mb: 1 }}>
+              No Active Launch
+            </Typography>
+            <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 2 }}>
               Create a launch to start accepting votes
-            </p>
-            <Link href="/admin/launches">
-              <Button>
-                <Rocket className="mr-2 h-4 w-4" />
-                Manage Launches
-              </Button>
-            </Link>
+            </Typography>
+            <Button 
+              component={Link} 
+              href="/admin/launches"
+              variant="contained"
+              startIcon={<Rocket />}
+            >
+              Manage Launches
+            </Button>
           </CardContent>
         </Card>
       )}
 
       {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Link href="/admin/launches">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="flex items-center p-6">
-              <Rocket className="h-8 w-8 text-blue-600 mr-4" />
-              <div>
-                <h3 className="font-medium">Launches</h3>
-                <p className="text-sm text-muted-foreground">Manage voting launches</p>
-              </div>
-              <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} lg={3}>
+          <Card 
+            component={Link} 
+            href="/admin/launches"
+            sx={{ 
+              textDecoration: 'none',
+              cursor: 'pointer',
+              '&:hover': { boxShadow: 3 },
+              transition: 'box-shadow 0.2s'
+            }}
+          >
+            <CardContent sx={{ display: 'flex', alignItems: 'center', p: 3 }}>
+              <Rocket sx={{ fontSize: 32, color: 'primary.main', mr: 2 }} />
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                  Launches
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Manage voting launches
+                </Typography>
+              </Box>
+              <ArrowRight color="action" />
             </CardContent>
           </Card>
-        </Link>
+        </Grid>
         
-        <Link href="/admin/voting">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="flex items-center p-6">
-              <Vote className="h-8 w-8 text-green-600 mr-4" />
-              <div>
-                <h3 className="font-medium">Voting</h3>
-                <p className="text-sm text-muted-foreground">Monitor live voting</p>
-              </div>
-              <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
+        <Grid item xs={12} sm={6} lg={3}>
+          <Card 
+            component={Link} 
+            href="/admin/voting"
+            sx={{ 
+              textDecoration: 'none',
+              cursor: 'pointer',
+              '&:hover': { boxShadow: 3 },
+              transition: 'box-shadow 0.2s'
+            }}
+          >
+            <CardContent sx={{ display: 'flex', alignItems: 'center', p: 3 }}>
+              <Vote sx={{ fontSize: 32, color: 'success.main', mr: 2 }} />
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                  Voting
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Monitor live voting
+                </Typography>
+              </Box>
+              <ArrowRight color="action" />
             </CardContent>
           </Card>
-        </Link>
+        </Grid>
         
-        <Link href="/admin/config">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="flex items-center p-6">
-              <Database className="h-8 w-8 text-purple-600 mr-4" />
-              <div>
-                <h3 className="font-medium">Configuration</h3>
-                <p className="text-sm text-muted-foreground">System settings</p>
-              </div>
-              <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
+        <Grid item xs={12} sm={6} lg={3}>
+          <Card 
+            component={Link} 
+            href="/admin/config"
+            sx={{ 
+              textDecoration: 'none',
+              cursor: 'pointer',
+              '&:hover': { boxShadow: 3 },
+              transition: 'box-shadow 0.2s'
+            }}
+          >
+            <CardContent sx={{ display: 'flex', alignItems: 'center', p: 3 }}>
+              <Database sx={{ fontSize: 32, color: 'secondary.main', mr: 2 }} />
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                  Configuration
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  System settings
+                </Typography>
+              </Box>
+              <ArrowRight color="action" />
             </CardContent>
           </Card>
-        </Link>
+        </Grid>
         
-        <Card className="hover:shadow-md transition-shadow cursor-pointer">
-          <CardContent className="flex items-center p-6">
-            <BarChart3 className="h-8 w-8 text-orange-600 mr-4" />
-            <div>
-              <h3 className="font-medium">Analytics</h3>
-              <p className="text-sm text-muted-foreground">View reports</p>
-            </div>
-            <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
-          </CardContent>
-        </Card>
-      </div>
+        <Grid item xs={12} sm={6} lg={3}>
+          <Card sx={{ 
+            cursor: 'pointer',
+            '&:hover': { boxShadow: 3 },
+            transition: 'box-shadow 0.2s'
+          }}>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', p: 3 }}>
+              <BarChart3 sx={{ fontSize: 32, color: 'warning.main', mr: 2 }} />
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                  Analytics
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  View reports
+                </Typography>
+              </Box>
+              <ArrowRight color="action" />
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Flush Status */}
       <FlushStatus 
@@ -256,34 +408,44 @@ export default async function AdminDashboard() {
       {/* Recent Activity */}
       {activeLaunch && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Current Launch
-            </CardTitle>
-          </CardHeader>
+          <CardHeader
+            title={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Calendar />
+                <Typography variant="h6">Current Launch</Typography>
+              </Box>
+            }
+          />
           <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">{new Date(activeLaunch.date).toLocaleDateString()}</p>
-                <p className="text-sm text-muted-foreground">
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                  {new Date(activeLaunch.date).toLocaleDateString()}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
                   {activeLaunch.apps.length} apps • {votingStats.totalVotes} votes
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="success" className="bg-green-100 text-green-800">
-                  {activeLaunch.status}
-                </Badge>
-                <Link href="/admin/voting">
-                  <Button variant="outline" size="sm">
-                    View Details
-                  </Button>
-                </Link>
-              </div>
-            </div>
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip 
+                  label={activeLaunch.status} 
+                  color="success" 
+                  variant="outlined"
+                  size="small"
+                />
+                <Button 
+                  component={Link} 
+                  href="/admin/voting"
+                  variant="outlined" 
+                  size="small"
+                >
+                  View Details
+                </Button>
+              </Box>
+            </Box>
           </CardContent>
         </Card>
       )}
-    </>
+    </Box>
   );
 }

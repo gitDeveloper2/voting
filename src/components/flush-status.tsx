@@ -1,19 +1,31 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { 
-  RefreshCw, 
-  CheckCircle, 
-  AlertTriangle, 
-  Clock,
-  Database,
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  Grid,
+  LinearProgress,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Typography
+} from '@mui/material';
+import {
+  Refresh as RefreshCw,
+  CheckCircle,
+  Warning as AlertTriangle,
+  Schedule as Clock,
+  Storage as Database,
   TrendingUp,
-  Zap
-} from 'lucide-react';
+  FlashOn as Zap
+} from '@mui/icons-material';
 
 interface FlushStatusProps {
   activeLaunch?: {
@@ -70,8 +82,7 @@ export function FlushStatus({ activeLaunch, votingStats }: FlushStatusProps) {
       return {
         status: 'No Active Launch',
         description: 'No launch is currently active for voting',
-        color: 'text-gray-500',
-        bgColor: 'bg-gray-100',
+        color: 'default' as const,
         icon: Clock
       };
     }
@@ -81,32 +92,28 @@ export function FlushStatus({ activeLaunch, votingStats }: FlushStatusProps) {
         return {
           status: 'Active Voting',
           description: 'Launch is accepting votes',
-          color: 'text-green-700',
-          bgColor: 'bg-green-100',
+          color: 'success' as const,
           icon: TrendingUp
         };
       case 'flushing':
         return {
           status: 'Flushing Votes',
           description: 'Transferring votes to permanent storage',
-          color: 'text-yellow-700',
-          bgColor: 'bg-yellow-100',
+          color: 'warning' as const,
           icon: RefreshCw
         };
       case 'flushed':
         return {
           status: 'Completed',
           description: 'Launch completed and votes saved',
-          color: 'text-blue-700',
-          bgColor: 'bg-blue-100',
+          color: 'info' as const,
           icon: CheckCircle
         };
       default:
         return {
           status: 'Unknown',
           description: 'Launch status unknown',
-          color: 'text-gray-700',
-          bgColor: 'bg-gray-100',
+          color: 'default' as const,
           icon: AlertTriangle
         };
     }
@@ -117,142 +124,185 @@ export function FlushStatus({ activeLaunch, votingStats }: FlushStatusProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Database className="h-5 w-5" />
-          Vote Flushing Status
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Current Status */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-full ${statusInfo.bgColor}`}>
-              <StatusIcon className={`h-4 w-4 ${statusInfo.color}`} />
-            </div>
-            <div>
-              <p className="font-medium">{statusInfo.status}</p>
-              <p className="text-sm text-muted-foreground">{statusInfo.description}</p>
-            </div>
-          </div>
-          <Badge 
-            variant={activeLaunch?.status === 'active' ? 'success' : 
-                    activeLaunch?.status === 'flushing' ? 'warning' : 
-                    activeLaunch?.status === 'flushed' ? 'info' : 'secondary'}
-          >
-            {activeLaunch?.status || 'none'}
-          </Badge>
-        </div>
-
-        {/* Active Launch Details */}
-        {activeLaunch && (
-          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Launch Date</p>
-              <p className="text-lg font-semibold">
-                {new Date(activeLaunch.date).toLocaleDateString()}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Apps in Launch</p>
-              <p className="text-lg font-semibold">{activeLaunch.apps.length}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Current Votes</p>
-              <p className="text-lg font-semibold">{votingStats?.totalVotes || 0}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Participants</p>
-              <p className="text-lg font-semibold">{votingStats?.participatingUsers || 0}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Flush Progress */}
-        {activeLaunch?.status === 'flushing' && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Flushing Progress</span>
-              <RefreshCw className="h-4 w-4 animate-spin text-yellow-600" />
-            </div>
-            <Progress value={75} className="w-full" />
-            <p className="text-xs text-muted-foreground">
-              Transferring votes from Redis to MongoDB...
-            </p>
-          </div>
-        )}
-
-        {/* Manual Flush Controls */}
-        {activeLaunch?.status === 'active' && (
-          <div className="border-t pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Manual Flush</p>
-                <p className="text-sm text-muted-foreground">
-                  Manually trigger vote flushing for this launch
-                </p>
-              </div>
-              <Button
-                onClick={handleManualFlush}
-                disabled={isManualFlushing}
-                variant="outline"
-                size="sm"
+      <CardHeader
+        title={
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Database />
+            <Typography variant="h6">Vote Flushing Status</Typography>
+          </Box>
+        }
+      />
+      <CardContent>
+        <Box sx={{ mb: 3 }}>
+          {/* Current Status */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box
+                sx={{
+                  p: 1,
+                  borderRadius: '50%',
+                  backgroundColor: `${statusInfo.color}.light`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
               >
-                {isManualFlushing ? (
-                  <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Flushing...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="mr-2 h-4 w-4" />
-                    Flush Now
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
+                <StatusIcon color={statusInfo.color === 'default' ? 'action' : statusInfo.color} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                  {statusInfo.status}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {statusInfo.description}
+                </Typography>
+              </Box>
+            </Box>
+            <Chip 
+              label={activeLaunch?.status || 'none'}
+              color={statusInfo.color}
+              variant="outlined"
+              size="small"
+            />
+          </Box>
 
-        {/* Flush Result */}
-        {flushResult && (
-          <div className={`p-3 rounded-lg border ${
-            flushResult.success 
-              ? 'bg-green-50 border-green-200 text-green-800' 
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
-            <div className="flex items-center gap-2">
-              {flushResult.success ? (
-                <CheckCircle className="h-4 w-4" />
-              ) : (
-                <AlertTriangle className="h-4 w-4" />
-              )}
-              <p className="font-medium">
+          {/* Active Launch Details */}
+          {activeLaunch && (
+            <Grid container spacing={2} sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2, mb: 3 }}>
+              <Grid item xs={6}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  Launch Date
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {new Date(activeLaunch.date).toLocaleDateString()}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  Apps in Launch
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {activeLaunch.apps.length}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  Current Votes
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {votingStats?.totalVotes || 0}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  Participants
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {votingStats?.participatingUsers || 0}
+                </Typography>
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Flush Progress */}
+          {activeLaunch?.status === 'flushing' && (
+            <Box sx={{ mb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  Flushing Progress
+                </Typography>
+                <RefreshCw sx={{ fontSize: 16, animation: 'spin 1s linear infinite' }} color="warning" />
+              </Box>
+              <LinearProgress variant="determinate" value={75} sx={{ mb: 1 }} />
+              <Typography variant="caption" color="text.secondary">
+                Transferring votes from Redis to MongoDB...
+              </Typography>
+            </Box>
+          )}
+
+          {/* Manual Flush Controls */}
+          {activeLaunch?.status === 'active' && (
+            <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 2, mb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
+                    Manual Flush
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Manually trigger vote flushing for this launch
+                  </Typography>
+                </Box>
+                <Button
+                  onClick={handleManualFlush}
+                  disabled={isManualFlushing}
+                  variant="outlined"
+                  size="small"
+                  startIcon={
+                    isManualFlushing ? (
+                      <RefreshCw sx={{ animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <Zap />
+                    )
+                  }
+                >
+                  {isManualFlushing ? 'Flushing...' : 'Flush Now'}
+                </Button>
+              </Box>
+            </Box>
+          )}
+
+          {/* Flush Result */}
+          {flushResult && (
+            <Alert 
+              severity={flushResult.success ? 'success' : 'error'}
+              sx={{ mb: 3 }}
+              icon={flushResult.success ? <CheckCircle /> : <AlertTriangle />}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
                 {flushResult.success ? 'Flush Successful!' : 'Flush Failed'}
-              </p>
-            </div>
-            <p className="text-sm mt-1">{flushResult.message}</p>
-            {flushResult.voteCounts && (
-              <div className="mt-2 text-xs">
-                <p>Votes processed: {Object.keys(flushResult.voteCounts).length} apps</p>
-              </div>
-            )}
-          </div>
-        )}
+              </Typography>
+              <Typography variant="body2">{flushResult.message}</Typography>
+              {flushResult.voteCounts && (
+                <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                  Votes processed: {Object.keys(flushResult.voteCounts).length} apps
+                </Typography>
+              )}
+            </Alert>
+          )}
 
-        {/* Automatic Flush Info */}
-        <div className="text-xs text-muted-foreground bg-blue-50 p-3 rounded-lg">
-          <div className="flex items-center gap-2 mb-1">
-            <Clock className="h-3 w-3" />
-            <span className="font-medium">Automatic Flushing</span>
-          </div>
-          <p>Votes are automatically flushed daily by cron jobs:</p>
-          <ul className="mt-1 ml-4 space-y-1">
-            <li>• Morning: Create new launch & flush previous day</li>
-            <li>• Evening: Flush active launch votes</li>
-            <li>• Every 6 hours: Combined launch management</li>
-          </ul>
-        </div>
+          {/* Automatic Flush Info */}
+          <Alert severity="info" sx={{ fontSize: '0.75rem' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <Clock fontSize="small" />
+              <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
+                Automatic Flushing
+              </Typography>
+            </Box>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              Votes are automatically flushed daily by cron jobs:
+            </Typography>
+            <List dense sx={{ pl: 2 }}>
+              <ListItem disablePadding>
+                <ListItemText 
+                  primary="• Morning: Create new launch & flush previous day"
+                  primaryTypographyProps={{ variant: 'body2' }}
+                />
+              </ListItem>
+              <ListItem disablePadding>
+                <ListItemText 
+                  primary="• Evening: Flush active launch votes"
+                  primaryTypographyProps={{ variant: 'body2' }}
+                />
+              </ListItem>
+              <ListItem disablePadding>
+                <ListItemText 
+                  primary="• Every 6 hours: Combined launch management"
+                  primaryTypographyProps={{ variant: 'body2' }}
+                />
+              </ListItem>
+            </List>
+          </Alert>
+        </Box>
       </CardContent>
     </Card>
   );

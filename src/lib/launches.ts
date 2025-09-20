@@ -9,6 +9,10 @@ export interface LaunchDocument {
   apps: ObjectId[];
   createdAt: Date;
   flushedAt?: Date;
+  name?: string;
+  createdBy?: string;
+  manual?: boolean;
+  options?: Record<string, any>;
 }
 
 export interface LaunchStatus {
@@ -26,7 +30,16 @@ export interface FlushResult {
 /**
  * Create a new launch with apps and initialize Redis keys
  */
-export async function createLaunch(date: string, appIds: string[]): Promise<LaunchDocument> {
+export async function createLaunch(
+  date: string, 
+  appIds: string[], 
+  metadata?: {
+    name?: string;
+    createdBy?: string;
+    manual?: boolean;
+    options?: Record<string, any>;
+  }
+): Promise<LaunchDocument> {
   const { db } = await connectToDatabase();
   
   // Check if launch already exists
@@ -49,7 +62,11 @@ export async function createLaunch(date: string, appIds: string[]): Promise<Laun
     date,
     status: 'active',
     apps: appObjectIds,
-    createdAt: new Date()
+    createdAt: new Date(),
+    ...(metadata?.name && { name: metadata.name }),
+    ...(metadata?.createdBy && { createdBy: metadata.createdBy }),
+    ...(metadata?.manual !== undefined && { manual: metadata.manual }),
+    ...(metadata?.options && { options: metadata.options })
   };
   
   const result = await db.collection('launches').insertOne(launchDoc);
