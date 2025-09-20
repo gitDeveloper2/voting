@@ -61,7 +61,7 @@ async function getAppsData(page: number = 1, limit: number = 20) {
 export default async function AppsPage({ 
   searchParams 
 }: { 
-  searchParams: { page?: string; limit?: string } 
+  searchParams: Promise<{ page?: string; limit?: string }> 
 }) {
   // Check authentication
   const session = await auth();
@@ -69,9 +69,12 @@ export default async function AppsPage({
     redirect('/login');
   }
 
+  // Await searchParams since it's now a Promise in Next.js 15
+  const params = await searchParams;
+  
   // Get pagination params
-  const page = parseInt(searchParams.page || '1', 10);
-  const limit = parseInt(searchParams.limit || '20', 10);
+  const page = parseInt(params.page || '1', 10);
+  const limit = parseInt(params.limit || '20', 10);
 
   // Fetch data on server
   const data = await getAppsData(page, limit);
