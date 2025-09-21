@@ -5,6 +5,7 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { redis, voteKeys } from '@/lib/redis';
 import { getActiveLaunch } from '@/lib/launches';
 import { FlushStatus } from '@/components/flush-status';
+import { SystemMaintenance } from '@/components/system-maintenance';
 import {
   Box,
   Button,
@@ -403,6 +404,16 @@ export default async function AdminDashboard() {
           createdAt: activeLaunch.createdAt.toISOString()
         } : null} 
         votingStats={votingStats} 
+      />
+
+      {/* System Maintenance */}
+      <SystemMaintenance 
+        activeLaunch={activeLaunch ? {
+          _id: activeLaunch._id?.toString(),
+          date: activeLaunch.date,
+          status: activeLaunch.status,
+          apps: activeLaunch.apps
+        } : null} 
       />
 
       {/* Recent Activity */}

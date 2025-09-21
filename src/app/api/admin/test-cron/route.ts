@@ -15,24 +15,18 @@ export async function POST() {
   }
 
   try {
-    // Call the daily launch cycle endpoint
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret) {
-      return NextResponse.json(
-        { error: 'CRON_SECRET not configured' },
-        { status: 500 }
-      );
-    }
-
+    // Call the daily launch cycle endpoint directly (no secret needed)
     const baseUrl = process.env.VERCEL_URL 
       ? `https://${process.env.VERCEL_URL}`
       : 'http://localhost:3000';
 
+    console.log('[TestCron] Triggering daily launch cycle manually...');
+
     const response = await fetch(`${baseUrl}/api/cron/daily-launch-cycle`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${cronSecret}`,
         'Content-Type': 'application/json',
+        'User-Agent': 'manual-test-cron'
       },
     });
 

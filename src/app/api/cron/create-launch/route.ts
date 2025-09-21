@@ -10,14 +10,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // Verify this is a cron job request
-    const authHeader = (await headers()).get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    // DEPRECATED: This endpoint has been replaced by /api/cron/daily-launch-cycle
+    console.log('[CreateLaunch] DEPRECATED endpoint called - use daily-launch-cycle instead');
 
     const now = new Date();
     const today = now.toISOString().split('T')[0]; // YYYY-MM-DD format

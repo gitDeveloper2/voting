@@ -1,27 +1,24 @@
-import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
 import { createLaunch, getTodaysLaunchApps, flushLaunchVotes, getActiveLaunch } from '@/lib/launches';
 import { revalidateLaunchPage } from '@/lib/revalidation';
+import { buildCorsHeaders, parseAllowedOrigins, resolveAllowedOrigin } from '@/utils/api';
 
-// Single daily cron job that handles the complete launch cycle
-// Runs once per day at 6 AM UTC to handle both flushing and creation
-// Vercel cron jobs are automatically authenticated - no manual secrets needed
+/**
+ * POST /api/admin/trigger-cron
+ * Manually triggers the daily launch cycle for testing
+ * This directly executes the same logic as the cron job without requiring authentication
+ */
+export async function POST(req: NextRequest) {
+  const requestId = Math.random().toString(36).substring(7);
+  const timestamp = new Date().toISOString();
+  
+  console.log(`[TriggerCron][${requestId}][START] ${timestamp} - Manual cron trigger`);
+  
+  const requestOrigin = req.headers.get('origin');
+  const allowedOrigins = parseAllowedOrigins(process.env.CORS_ORIGINS || process.env.CORS_ORIGIN);
+  const origin = resolveAllowedOrigin(requestOrigin, allowedOrigins);
 
-export const dynamic = 'force-dynamic';
-
-export async function GET() {
   try {
-    // Vercel cron jobs are automatically authenticated - no manual auth needed
-    // Optional: Check if request is from Vercel cron (has specific headers)
-    const userAgent = (await headers()).get('user-agent');
-    const isVercelCron = userAgent?.includes('vercel-cron') || true; // Allow all for now
-    
-    console.log('[DailyLaunchCycle] Cron job triggered', {
-      userAgent,
-      timestamp: new Date().toISOString(),
-      isVercelCron
-    });
-
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     
@@ -32,19 +29,19 @@ export async function GET() {
       cycleComplete: false
     };
 
-    console.log(`[DailyLaunchCycle] Starting daily cycle for ${today}`);
+    console.log(`[TriggerCron][${requestId}] Starting manual daily cycle for ${today}`);
 
     // STEP 1: Flush any active launch (from previous day)
     try {
       const activeLaunch = await getActiveLaunch();
       
       if (activeLaunch) {
-        console.log(`[DailyLaunchCycle] Found active launch: ${activeLaunch.date}`);
+        console.log(`[TriggerCron][${requestId}] Found active launch: ${activeLaunch.date}`);
         
         // Only flush if it's not today's launch (safety check)
         if (activeLaunch.date !== today) {
           const flushResult = await flushLaunchVotes(activeLaunch.date);
-          console.log(`[DailyLaunchCycle] Flushed launch ${activeLaunch.date}:`, flushResult);
+          console.log(`[TriggerCron][${requestId}] Flushed launch ${activeLaunch.date}:`, flushResult);
           
           results.flushPrevious = {
             success: flushResult.success,
@@ -71,7 +68,7 @@ export async function GET() {
         };
       }
     } catch (error) {
-      console.error('[DailyLaunchCycle] Error flushing previous launch:', error);
+      console.error(`[TriggerCron][${requestId}] Error flushing previous launch:`, error);
       results.flushPrevious = {
         success: false,
         error: 'Failed to flush previous launch',
@@ -94,7 +91,7 @@ export async function GET() {
         try {
           const newLaunch = await createLaunch(today, appIds);
           
-          console.log(`[DailyLaunchCycle] Created new launch for ${today} with ${appIds.length} apps`);
+          console.log(`[TriggerCron][${requestId}] Created new launch for ${today} with ${appIds.length} apps`);
           
           results.createNew = {
             success: true,
@@ -126,7 +123,7 @@ export async function GET() {
         }
       }
     } catch (error) {
-      console.error('[DailyLaunchCycle] Error creating new launch:', error);
+      console.error(`[TriggerCron][${requestId}] Error creating new launch:`, error);
       results.createNew = {
         success: false,
         error: 'Failed to create new launch',
@@ -139,27 +136,45 @@ export async function GET() {
     const createSuccess = results.createNew?.success !== false;
     results.cycleComplete = flushSuccess && createSuccess;
 
-    console.log(`[DailyLaunchCycle] Daily cycle completed. Success: ${results.cycleComplete}`);
+    console.log(`[TriggerCron][${requestId}] Manual daily cycle completed. Success: ${results.cycleComplete}`);
 
-    return NextResponse.json({
+    const response = {
       success: results.cycleComplete,
       message: results.cycleComplete 
-        ? 'Daily launch cycle completed successfully'
-        : 'Daily launch cycle completed with some errors',
+        ? 'Manual daily launch cycle completed successfully'
+        : 'Manual daily launch cycle completed with some errors',
       results,
-      nextCycle: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      triggeredAt: timestamp,
+      nextScheduledCycle: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    };
+
+    console.log(`[TriggerCron][${requestId}][END] Request completed in ${Date.now() - new Date(timestamp).getTime()}ms`);
+
+    return NextResponse.json(response, { 
+      status: results.cycleComplete ? 200 : 500,
+      headers: buildCorsHeaders(origin) 
     });
     
   } catch (error) {
-    console.error('[DailyLaunchCycle] Critical error in daily cycle:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Critical failure in daily launch cycle',
-        details: error instanceof Error ? error.message : String(error),
-        timestamp: new Date().toISOString()
-      },
-      { status: 500 }
-    );
+    console.error(`[TriggerCron][${requestId}] Critical error in manual cycle:`, error);
+    return NextResponse.json({
+      success: false, 
+      error: 'Critical failure in manual daily launch cycle',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    }, { 
+      status: 500, 
+      headers: buildCorsHeaders(origin) 
+    });
   }
+}
+
+export function OPTIONS(req: NextRequest) {
+  const requestOrigin = req.headers.get('origin');
+  const allowedOrigins = parseAllowedOrigins(process.env.CORS_ORIGINS || process.env.CORS_ORIGIN);
+  const origin = resolveAllowedOrigin(requestOrigin, allowedOrigins);
+  return new Response(null, {
+    status: 204,
+    headers: buildCorsHeaders(origin),
+  });
 }

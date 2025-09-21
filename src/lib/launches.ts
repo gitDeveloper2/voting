@@ -188,6 +188,7 @@ export async function getLaunchStatus(): Promise<LaunchStatus> {
 
 /**
  * Check if an app is eligible for voting in the active launch
+ * Includes automatic repair if Redis data is missing but MongoDB has active launch
  */
 export async function isAppInActiveLaunch(appId: string): Promise<boolean> {
   try {
@@ -201,6 +202,32 @@ export async function isAppInActiveLaunch(appId: string): Promise<boolean> {
     // Additional debug: get all eligible apps for context
     const allEligibleApps = await redis.smembers(voteKeys.launchApps);
     console.log(`[Launches][ELIGIBILITY] Current eligible apps in launch: [${allEligibleApps.join(', ')}] (${allEligibleApps.length} total)`);
+    
+    // If Redis has no eligible apps, check if there's an active launch in MongoDB that needs repair
+    if (allEligibleApps.length === 0) {
+      console.log(`[Launches][ELIGIBILITY] Redis has no eligible apps - checking for active launch to repair...`);
+      
+      const activeLaunch = await getActiveLaunch();
+      if (activeLaunch && activeLaunch.status === 'active') {
+        console.log(`[Launches][ELIGIBILITY] Found active launch with ${activeLaunch.apps.length} apps - attempting automatic repair...`);
+        
+        const repairResult = await repairActiveLaunchRedis();
+        if (repairResult.success) {
+          console.log(`[Launches][ELIGIBILITY] Automatic repair successful - rechecking app eligibility...`);
+          
+          // Recheck eligibility after repair
+          const newIsMember = await redis.sismember(voteKeys.launchApps, appId);
+          const newIsEligible = newIsMember === 1;
+          
+          console.log(`[Launches][ELIGIBILITY] After repair - App ${appId} eligibility: ${newIsEligible} (Redis returned: ${newIsMember})`);
+          return newIsEligible;
+        } else {
+          console.log(`[Launches][ELIGIBILITY] Automatic repair failed:`, repairResult.message);
+        }
+      } else {
+        console.log(`[Launches][ELIGIBILITY] No active launch found in MongoDB - Redis state is correct`);
+      }
+    }
     
     return isEligible;
   } catch (error) {
@@ -389,4 +416,108 @@ export async function getLaunchByDate(date: string): Promise<LaunchDocument | nu
   const launch = await db.collection('launches').findOne({ date }) as LaunchDocument | null;
   
   return launch;
+}
+
+/**
+ * Repair Redis data for active launch - sync Redis with MongoDB
+ * This fixes the issue where MongoDB has an active launch but Redis keys are missing/expired
+ */
+export async function repairActiveLaunchRedis(): Promise<{ success: boolean; message: string; details?: any }> {
+  console.log('[Launches][REPAIR] Starting Redis repair for active launch...');
+  
+  try {
+    // Get the active launch from MongoDB
+    const activeLaunch = await getActiveLaunch();
+    
+    if (!activeLaunch) {
+      console.log('[Launches][REPAIR] No active launch found in MongoDB - nothing to repair');
+      return {
+        success: true,
+        message: 'No active launch found - Redis is correctly empty'
+      };
+    }
+    
+    console.log('[Launches][REPAIR] Found active launch to repair:', {
+      id: activeLaunch._id?.toString(),
+      date: activeLaunch.date,
+      status: activeLaunch.status,
+      appsCount: activeLaunch.apps.length
+    });
+    
+    // Check current Redis state
+    const currentEligibleApps = await redis.smembers(voteKeys.launchApps);
+    console.log('[Launches][REPAIR] Current Redis state:', {
+      eligibleAppsCount: currentEligibleApps.length,
+      eligibleApps: currentEligibleApps.slice(0, 5) // Show first 5 for brevity
+    });
+    
+    // Convert ObjectIds to strings for Redis
+    const appIds = activeLaunch.apps.map(id => id.toString());
+    
+    // Check if Redis already has the correct data
+    if (currentEligibleApps.length === appIds.length && 
+        appIds.every(appId => currentEligibleApps.includes(appId))) {
+      console.log('[Launches][REPAIR] Redis already has correct data - no repair needed');
+      return {
+        success: true,
+        message: 'Redis already synchronized with active launch',
+        details: {
+          appsCount: appIds.length,
+          redisAppsCount: currentEligibleApps.length
+        }
+      };
+    }
+    
+    // Repair Redis data
+    console.log('[Launches][REPAIR] Repairing Redis data...');
+    const multi = redis.multi();
+    
+    // Clear existing data
+    multi.del(voteKeys.launchApps);
+    
+    // Add apps to eligible set
+    if (appIds.length > 0) {
+      multi.sadd(voteKeys.launchApps, ...appIds);
+      multi.expire(voteKeys.launchApps, 25 * 60 * 60); // 25 hours
+      
+      // Initialize vote counters if they don't exist
+      for (const appId of appIds) {
+        const voteKey = voteKeys.votes(appId);
+        // Only set to 0 if key doesn't exist (to preserve existing votes)
+        multi.set(voteKey, '0', 'NX');
+        multi.expire(voteKey, 25 * 60 * 60);
+      }
+    }
+    
+    await multi.exec();
+    
+    // Verify repair
+    const repairedEligibleApps = await redis.smembers(voteKeys.launchApps);
+    
+    console.log('[Launches][REPAIR] Repair completed:', {
+      beforeAppsCount: currentEligibleApps.length,
+      afterAppsCount: repairedEligibleApps.length,
+      expectedAppsCount: appIds.length,
+      success: repairedEligibleApps.length === appIds.length
+    });
+    
+    return {
+      success: true,
+      message: `Successfully repaired Redis data for ${appIds.length} apps`,
+      details: {
+        launchId: activeLaunch._id?.toString(),
+        launchDate: activeLaunch.date,
+        appsRepaired: appIds.length,
+        beforeCount: currentEligibleApps.length,
+        afterCount: repairedEligibleApps.length
+      }
+    };
+    
+  } catch (error) {
+    console.error('[Launches][REPAIR] Error during Redis repair:', error);
+    return {
+      success: false,
+      message: `Redis repair failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    };
+  }
 }

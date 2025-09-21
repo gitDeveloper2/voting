@@ -81,7 +81,7 @@ export default async function ConfigPage() {
     { name: 'NEXTAUTH_SECRET', value: process.env.NEXTAUTH_SECRET ? '✓ Set' : '✗ Missing', sensitive: true },
     { name: 'NEXTAUTH_URL', value: process.env.NEXTAUTH_URL || 'http://localhost:3000' },
     { name: 'CORS_ORIGINS', value: process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || 'Not set' },
-    { name: 'CRON_SECRET', value: process.env.CRON_SECRET ? '✓ Set' : '✗ Missing', sensitive: true },
+    // CRON_SECRET no longer required - Vercel cron jobs are automatically authenticated
   ];
 
   return (
