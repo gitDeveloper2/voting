@@ -408,8 +408,8 @@ export default async function AdminDashboard() {
 
       {/* System Maintenance */}
       <SystemMaintenance 
-        activeLaunch={activeLaunch ? {
-          _id: activeLaunch._id?.toString(),
+        activeLaunch={activeLaunch && activeLaunch._id ? {
+          _id: activeLaunch._id.toString(),
           date: activeLaunch.date,
           status: activeLaunch.status,
           apps: activeLaunch.apps
