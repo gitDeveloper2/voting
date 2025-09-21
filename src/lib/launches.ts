@@ -40,21 +40,40 @@ export async function createLaunch(
     options?: Record<string, any>;
   }
 ): Promise<LaunchDocument> {
+  console.log(`[Launches][CREATE] Starting launch creation for ${date} with ${appIds.length} apps`, {
+    date,
+    appIds: appIds.slice(0, 5), // Log first 5 app IDs for brevity
+    totalApps: appIds.length,
+    metadata
+  });
+  
   const { db } = await connectToDatabase();
   
   // Check if launch already exists
+  console.log(`[Launches][CREATE] Checking for existing launch on ${date}...`);
   const existingLaunch = await db.collection('launches').findOne({ date });
   if (existingLaunch) {
+    console.log(`[Launches][CREATE_FAIL] Launch already exists for ${date}:`, {
+      id: existingLaunch._id?.toString(),
+      status: existingLaunch.status
+    });
     throw new Error(`Launch for ${date} already exists`);
   }
   
   // Ensure only one active launch at a time
+  console.log('[Launches][CREATE] Checking for existing active launch...');
   const activeLaunch = await db.collection('launches').findOne({ status: 'active' });
   if (activeLaunch) {
+    console.log('[Launches][CREATE_FAIL] Another launch is already active:', {
+      id: activeLaunch._id?.toString(),
+      date: activeLaunch.date,
+      status: activeLaunch.status
+    });
     throw new Error('Another launch is already active');
   }
   
   // Convert string IDs to ObjectIds
+  console.log('[Launches][CREATE] Converting app IDs to ObjectIds...');
   const appObjectIds = appIds.map(id => new ObjectId(id));
   
   // Create launch document
@@ -69,13 +88,22 @@ export async function createLaunch(
     ...(metadata?.options && { options: metadata.options })
   };
   
+  console.log('[Launches][CREATE] Inserting launch document into MongoDB...', {
+    date: launchDoc.date,
+    status: launchDoc.status,
+    appsCount: launchDoc.apps.length,
+    manual: launchDoc.manual || false
+  });
+  
   const result = await db.collection('launches').insertOne(launchDoc);
   
   // Initialize Redis keys atomically
+  console.log('[Launches][CREATE] Initializing Redis keys for voting...');
   const multi = redis.multi();
   multi.del(voteKeys.launchApps);
   
   if (appIds.length > 0) {
+    console.log(`[Launches][CREATE] Adding ${appIds.length} apps to Redis eligible set: ${voteKeys.launchApps}`);
     multi.sadd(voteKeys.launchApps, ...appIds);
     multi.expire(voteKeys.launchApps, 25 * 60 * 60); // 25 hours
     
@@ -84,22 +112,49 @@ export async function createLaunch(
       multi.set(voteKeys.votes(appId), '0');
       multi.expire(voteKeys.votes(appId), 25 * 60 * 60);
     });
+    
+    console.log(`[Launches][CREATE] Initialized vote counters for ${appIds.length} apps with 25-hour expiry`);
+  } else {
+    console.log('[Launches][CREATE] No apps to add to Redis - empty launch created');
   }
   
   await multi.exec();
   
-  return { ...launchDoc, _id: result.insertedId };
+  const finalLaunch = { ...launchDoc, _id: result.insertedId };
+  console.log('[Launches][CREATE_SUCCESS] Launch created successfully:', {
+    id: finalLaunch._id?.toString(),
+    date: finalLaunch.date,
+    status: finalLaunch.status,
+    appsCount: finalLaunch.apps.length
+  });
+  
+  return finalLaunch;
 }
 
 /**
  * Get the currently active launch
  */
 export async function getActiveLaunch(): Promise<LaunchDocument | null> {
+  console.log('[Launches][GET_ACTIVE] Querying database for active launch...');
+  
   const { db } = await connectToDatabase();
   
   const launch = await db.collection('launches').findOne({
     status: 'active'
   }) as LaunchDocument | null;
+  
+  if (launch) {
+    console.log(`[Launches][GET_ACTIVE] Found active launch:`, {
+      id: launch._id?.toString(),
+      date: launch.date,
+      status: launch.status,
+      appsCount: launch.apps.length,
+      createdAt: launch.createdAt,
+      manual: launch.manual || false
+    });
+  } else {
+    console.log('[Launches][GET_ACTIVE] No active launch found');
+  }
   
   return launch;
 }
@@ -108,20 +163,27 @@ export async function getActiveLaunch(): Promise<LaunchDocument | null> {
  * Get launch status for voting validation
  */
 export async function getLaunchStatus(): Promise<LaunchStatus> {
+  console.log('[Launches][GET_STATUS] Getting launch status for voting validation...');
+  
   const activeLaunch = await getActiveLaunch();
   
   if (!activeLaunch) {
-    return {
+    const status = {
       hasActiveLaunch: false,
       isFlushingInProgress: false
     };
+    console.log('[Launches][GET_STATUS] No active launch - voting disabled:', status);
+    return status;
   }
   
-  return {
+  const status = {
     hasActiveLaunch: true,
     isFlushingInProgress: activeLaunch.status === 'flushing',
     activeLaunchDate: activeLaunch.date
   };
+  
+  console.log('[Launches][GET_STATUS] Launch status determined:', status);
+  return status;
 }
 
 /**
@@ -129,10 +191,20 @@ export async function getLaunchStatus(): Promise<LaunchStatus> {
  */
 export async function isAppInActiveLaunch(appId: string): Promise<boolean> {
   try {
+    console.log(`[Launches][ELIGIBILITY] Checking app ${appId} in Redis set: ${voteKeys.launchApps}`);
+    
     const isMember = await redis.sismember(voteKeys.launchApps, appId);
-    return isMember === 1;
+    const isEligible = isMember === 1;
+    
+    console.log(`[Launches][ELIGIBILITY] App ${appId} eligibility result: ${isEligible} (Redis returned: ${isMember})`);
+    
+    // Additional debug: get all eligible apps for context
+    const allEligibleApps = await redis.smembers(voteKeys.launchApps);
+    console.log(`[Launches][ELIGIBILITY] Current eligible apps in launch: [${allEligibleApps.join(', ')}] (${allEligibleApps.length} total)`);
+    
+    return isEligible;
   } catch (error) {
-    console.error('[Launches] Error checking app eligibility:', error);
+    console.error(`[Launches][ELIGIBILITY_ERROR] Error checking app ${appId} eligibility:`, error);
     return false;
   }
 }
@@ -257,6 +329,55 @@ export async function getPastLaunches(limit: number = 10): Promise<LaunchDocumen
     .toArray() as LaunchDocument[];
   
   return launches;
+}
+
+/**
+ * Get current vote counts from Redis for given app IDs
+ */
+export async function getCurrentVoteCounts(appIds: string[]): Promise<Record<string, number>> {
+  console.log(`[Launches][GET_CURRENT_VOTES] Getting current vote counts for ${appIds.length} apps from Redis...`);
+  
+  const voteCounts: Record<string, number> = {};
+  
+  try {
+    // Use MGET for single Redis command to get all vote counts efficiently
+    const voteKeys_array = appIds.map(appId => voteKeys.votes(appId));
+    
+    console.log(`[Launches][GET_CURRENT_VOTES] Using MGET for efficient single Redis command:`, {
+      keysToFetch: voteKeys_array.slice(0, 3).map(key => key.substring(0, 20) + '...'),
+      totalKeys: voteKeys_array.length,
+      command: 'MGET'
+    });
+    
+    const results = await redis.mget(...voteKeys_array);
+    
+    if (results) {
+      appIds.forEach((appId, index) => {
+        const voteCount = parseInt(results[index] || '0', 10);
+        voteCounts[appId] = voteCount;
+      });
+    }
+    
+    console.log(`[Launches][GET_CURRENT_VOTES] Retrieved current votes from Redis:`, {
+      totalApps: appIds.length,
+      appsWithVotes: Object.values(voteCounts).filter(count => count > 0).length,
+      totalCurrentVotes: Object.values(voteCounts).reduce((sum, count) => sum + count, 0),
+      dataSource: 'Redis voting session',
+      sampleCounts: Object.entries(voteCounts).slice(0, 3).reduce((acc, [id, count]) => {
+        acc[id.substring(0, 8) + '...'] = count;
+        return acc;
+      }, {} as Record<string, number>)
+    });
+    
+    return voteCounts;
+  } catch (error) {
+    console.error('[Launches][GET_CURRENT_VOTES] Error fetching current vote counts:', error);
+    // Return zero counts for all apps on error
+    return appIds.reduce((acc, appId) => {
+      acc[appId] = 0;
+      return acc;
+    }, {} as Record<string, number>);
+  }
 }
 
 /**
