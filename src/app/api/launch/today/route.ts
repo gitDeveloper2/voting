@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { getActiveLaunch, getCurrentVoteCounts } from '@/lib/launches';
 import { buildCorsHeaders, parseAllowedOrigins, resolveAllowedOrigin } from '@/utils/api';
+import { decryptVotingToken } from '@/lib/decryption';
+import { redis, voteKeys } from '@/lib/redis';
 
 function todayUtcString(): string {
   const now = new Date();
@@ -9,6 +11,57 @@ function todayUtcString(): string {
   const m = String(now.getUTCMonth() + 1).padStart(2, '0');
   const d = String(now.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;  
+}
+
+function getUserIdFromQuery(req: NextRequest): string | null {
+  try {
+    const { searchParams } = new URL(req.url);
+    const token = searchParams.get('token');
+    
+    if (!token) {
+      return null;
+    }
+    
+    const payload = decryptVotingToken(token);
+    
+    if (typeof payload.sub === 'string') {
+      return payload.sub;
+    }
+    
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function getUserVotes(userId: string, appIds: string[]): Promise<string[]> {
+  try {
+    const multi = redis.multi();
+    
+    // Check all user vote keys for the apps in this launch
+    appIds.forEach(appId => {
+      const userVoteKey = voteKeys.userVote(userId, appId);
+      multi.exists(userVoteKey);
+    });
+    
+    const results = await multi.exec();
+    
+    if (results) {
+      const votedAppIds: string[] = [];
+      appIds.forEach((appId, index) => {
+        // Redis EXISTS returns 1 if key exists, 0 if not
+        if (results[index]?.[1] === 1) {
+          votedAppIds.push(appId);
+        }
+      });
+      return votedAppIds;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Error getting user votes:', error);
+    return [];
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -78,6 +131,18 @@ export async function GET(req: NextRequest) {
     console.log(`[LaunchToday][${requestId}][CURRENT_VOTES] Fetching current vote counts from Redis...`);
     const currentVotes = await getCurrentVoteCounts(appIds);
     
+    // Get user votes (optional - only if token provided)
+    const userId = getUserIdFromQuery(req);
+    let userVotes: string[] = [];
+    
+    if (userId) {
+      console.log(`[LaunchToday][${requestId}][USER_VOTES] Getting user votes for user ${userId}...`);
+      userVotes = await getUserVotes(userId, appIds);
+      console.log(`[LaunchToday][${requestId}][USER_VOTES] User has voted for ${userVotes.length}/${appIds.length} apps`);
+    } else {
+      console.log(`[LaunchToday][${requestId}][USER_VOTES] No user token provided - userVotes will be empty`);
+    }
+    
     // Add current vote counts to each app
     const appsWithCurrentVotes = apps.map((app: any) => {
       const appId = app._id.toString();
@@ -142,7 +207,8 @@ export async function GET(req: NextRequest) {
       date: today, 
       premium, 
       nonPremium,
-      snapshot // Add snapshot object with appId -> currentVotes mapping
+      snapshot, // Add snapshot object with appId -> currentVotes mapping
+      userVotes // Array of app IDs that the user has voted for
     };
     
     // Calculate vote statistics
@@ -153,6 +219,8 @@ export async function GET(req: NextRequest) {
       totalCurrentVotes,
       totalHistoricalVotes,
       appsWithCurrentVotes: [...premium, ...nonPremium].filter((app: any) => app.currentVotes > 0).length,
+      userVotedAppsCount: userVotes.length,
+      userId: userId ? `${userId.substring(0, 8)}...` : 'anonymous',
       topCurrentVoteApp: [...premium, ...nonPremium]
         .sort((a: any, b: any) => b.currentVotes - a.currentVotes)[0]?.name || 'None',
       topCurrentVoteCount: [...premium, ...nonPremium]
