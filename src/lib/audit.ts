@@ -19,7 +19,10 @@ export interface AuditLog {
 export async function logAudit(entry: Omit<AuditLog, 'createdAt'>): Promise<void> {
   try {
     const { db } = await connectToDatabase();
-    await db.collection('audit_logs').insertOne({ ...entry, createdAt: new Date() });
+    // Ensure we do not provide a string _id when inserting, to satisfy OptionalId<Document>
+    // Strip _id if present and let MongoDB generate it
+    const { _id: _ignored, ...doc } = entry as any;
+    await db.collection('audit_logs').insertOne({ ...doc, createdAt: new Date() } as any);
   } catch (err) {
     // Do not throw from logging
     console.warn('[Audit] Failed to write audit log', err);
