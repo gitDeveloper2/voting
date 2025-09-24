@@ -1,25 +1,15 @@
 /**
  * Utility function to call the revalidation API
- * Uses CORS_ORIGINS or CORS_ORIGIN environment variable to determine main app domain
+ * Calls a single external endpoint defined by REVALIDATION_ENDPOINT
+ * Example: https://main-app.example.com/api/revalidate
  */
 export async function callRevalidationAPI(path: string): Promise<void> {
   try {
-    // Determine the main app domain from CORS environment variables
-    const corsOrigins = process.env.CORS_ORIGINS || process.env.CORS_ORIGIN;
-    let baseUrl = 'http://localhost:3000'; // Default fallback
+    // Use a single external endpoint for revalidation
+    // If not provided, fall back to localhost for local development
+    const revalidateUrl = process.env.REVALIDATION_ENDPOINT || 'http://localhost:3000/api/revalidate';
     
-    if (corsOrigins) {
-      // Parse the first origin from CORS_ORIGINS
-      const origins = corsOrigins.split(',').map(origin => origin.trim());
-      if (origins.length > 0 && origins[0] !== '*') {
-        baseUrl = origins[0];
-      }
-    }
-    
-    const revalidateUrl = `${baseUrl}/api/revalidate`;
-    
-    console.log(`[Revalidation] Calling revalidation API for path: ${path}`);
-    console.log(`[Revalidation] Using base URL: ${baseUrl}`);
+    console.log(`[Revalidation] Calling ${revalidateUrl} for path: ${path}`);
     
     const response = await fetch(revalidateUrl, {
       method: 'POST',

@@ -38,6 +38,7 @@ const navigation = [
   { name: 'Voting', href: '/admin/voting', icon: Vote },
   { name: 'Apps', href: '/admin/apps', icon: Vote },
   { name: 'Config', href: '/admin/config', icon: Settings },
+  { name: 'Audit', href: '/admin/audit', icon: BarChart3 },
 ];
 
 export function AdminNav() {

@@ -1,7 +1,29 @@
 import {  NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { flushLaunchVotes, getLaunchByDate } from '@/lib/launches';
-import { revalidateLaunchPage } from '@/lib/revalidation';
+// Local helper to call an external revalidation endpoint so callers only make one request to this API
+async function revalidateExternal(path: string): Promise<void> {
+  const base = process.env.REVALIDATION_ENDPOINT || 'http://localhost:3000';
+  const normalizedBase = base.replace(/\/+$/, '');
+  const url = /\/api\/revalidate$/.test(normalizedBase)
+    ? normalizedBase
+    : `${normalizedBase}/api/revalidate`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ path }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.warn('[Admin Flush] External revalidation failed', { status: res.status, statusText: res.statusText, data });
+    }
+  } catch (err) {
+    console.warn('[Admin Flush] External revalidation error', err);
+  }
+}
 
 export async function POST(
   request: Request,
@@ -38,7 +60,7 @@ export async function POST(
     }
 
     // Revalidate after flush
-    await revalidateLaunchPage();
+    await revalidateExternal('/launch');
 
     // Return updated launch info
     const updatedLaunch = await getLaunchByDate(date);

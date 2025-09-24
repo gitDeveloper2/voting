@@ -1,6 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createLaunch, getTodaysLaunchApps, flushLaunchVotes, getActiveLaunch } from '@/lib/launches';
-import { revalidateLaunchPage } from '@/lib/revalidation';
+// Local helper to call an external revalidation endpoint so callers only make one request to this API
+async function revalidateExternal(path: string): Promise<void> {
+  const base = process.env.REVALIDATION_ENDPOINT || 'http://localhost:3000';
+  const normalizedBase = base.replace(/\/+$/, '');
+  const url = /\/api\/revalidate$/.test(normalizedBase)
+    ? normalizedBase
+    : `${normalizedBase}/api/revalidate`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ path }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.warn('[TriggerCron] External revalidation failed', { status: res.status, statusText: res.statusText, data });
+    }
+  } catch (err) {
+    console.warn('[TriggerCron] External revalidation error', err);
+  }
+}
 import { buildCorsHeaders, parseAllowedOrigins, resolveAllowedOrigin } from '@/utils/api';
 
 /**
@@ -52,7 +74,7 @@ export async function POST(req: NextRequest) {
           
           // Trigger revalidation after flushing
           if (flushResult.success) {
-            await revalidateLaunchPage();
+            await revalidateExternal('/launch');
           }
         } else {
           results.flushPrevious = {
@@ -106,7 +128,7 @@ export async function POST(req: NextRequest) {
           };
           
           // Trigger revalidation after creating new launch
-          await revalidateLaunchPage();
+          await revalidateExternal('/launch');
           
         } catch (error) {
           // Launch might already exist

@@ -2,7 +2,25 @@ import { NextResponse } from 'next/server';
 import { getPastLaunches, LaunchDocument, createLaunch } from '@/lib/launches';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { revalidateLaunchPage } from '@/lib/revalidation';
+// Local helper to call an external revalidation endpoint so callers only make one request to this API
+async function revalidateExternal(path: string): Promise<void> {
+  const url = process.env.REVALIDATION_ENDPOINT || 'http://localhost:3000/api/revalidate';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ path }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.warn('[AdminLaunches] External revalidation failed', { status: res.status, statusText: res.statusText, data });
+    }
+  } catch (err) {
+    console.warn('[AdminLaunches] External revalidation error', err);
+  }
+}
 
 export async function GET() {
   const requestId = Math.random().toString(36).substring(7);
@@ -153,7 +171,7 @@ export async function POST(request: Request) {
 
     // Trigger revalidation
     console.log(`[AdminLaunches][${requestId}][REVALIDATION] Triggering launch page revalidation...`);
-    await revalidateLaunchPage();
+    await revalidateExternal('/launch');
     console.log(`[AdminLaunches][${requestId}][REVALIDATION_DONE] Revalidation completed`);
     
     const responseData = {

@@ -1,7 +1,58 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { createLaunch, getTodaysLaunchApps, flushLaunchVotes, getActiveLaunch } from '@/lib/launches';
-import { revalidateLaunchPage } from '@/lib/revalidation';
+import { logAudit } from '@/lib/audit';
+// Local helper to call an external revalidation endpoint so callers only make one request to this API
+async function revalidateExternal(path: string): Promise<void> {
+  const base = process.env.REVALIDATION_ENDPOINT || 'http://localhost:3000';
+  const normalizedBase = base.replace(/\/+$/, '');
+  const url = /\/api\/revalidate$/.test(normalizedBase)
+    ? normalizedBase
+    : `${normalizedBase}/api/revalidate`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ path }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.warn('[DailyLaunchCycle] External revalidation failed', { status: res.status, statusText: res.statusText, data });
+      await logAudit({
+        type: 'revalidation',
+        name: 'external-revalidate',
+        path,
+        route: '/api/cron/daily-launch-cycle',
+        status: 'error',
+        message: 'External revalidation failed',
+        payload: { status: res.status, statusText: res.statusText, data }
+      });
+    }
+    if (res.ok) {
+      await logAudit({
+        type: 'revalidation',
+        name: 'external-revalidate',
+        path,
+        route: '/api/cron/daily-launch-cycle',
+        status: 'success',
+        message: 'External revalidation succeeded'
+      });
+    }
+  } catch (err) {
+    console.warn('[DailyLaunchCycle] External revalidation error', err);
+    await logAudit({
+      type: 'revalidation',
+      name: 'external-revalidate',
+      path,
+      route: '/api/cron/daily-launch-cycle',
+      status: 'error',
+      message: 'External revalidation exception',
+      error: { message: err instanceof Error ? err.message : String(err) }
+    });
+  }
+}
 
 // Single daily cron job that handles the complete launch cycle
 // Runs once per day at 6 AM UTC to handle both flushing and creation
@@ -11,6 +62,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    await logAudit({ type: 'cron', name: 'daily-launch-cycle', route: '/api/cron/daily-launch-cycle', status: 'start', message: 'Cron started' });
     // Vercel cron jobs are automatically authenticated - no manual auth needed
     // Optional: Check if request is from Vercel cron (has specific headers)
     const userAgent = (await headers()).get('user-agent');
@@ -55,7 +107,7 @@ export async function GET() {
           
           // Trigger revalidation after flushing
           if (flushResult.success) {
-            await revalidateLaunchPage();
+            await revalidateExternal('/launch');
           }
         } else {
           results.flushPrevious = {
@@ -109,7 +161,7 @@ export async function GET() {
           };
           
           // Trigger revalidation after creating new launch
-          await revalidateLaunchPage();
+          await revalidateExternal('/launch');
           
         } catch (error) {
           // Launch might already exist
@@ -141,17 +193,20 @@ export async function GET() {
 
     console.log(`[DailyLaunchCycle] Daily cycle completed. Success: ${results.cycleComplete}`);
 
-    return NextResponse.json({
+    const response = {
       success: results.cycleComplete,
       message: results.cycleComplete 
         ? 'Daily launch cycle completed successfully'
         : 'Daily launch cycle completed with some errors',
       results,
       nextCycle: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    });
+    };
+    await logAudit({ type: 'cron', name: 'daily-launch-cycle', route: '/api/cron/daily-launch-cycle', status: results.cycleComplete ? 'success' : 'error', message: response.message, payload: results });
+    return NextResponse.json(response);
     
   } catch (error) {
     console.error('[DailyLaunchCycle] Critical error in daily cycle:', error);
+    await logAudit({ type: 'cron', name: 'daily-launch-cycle', route: '/api/cron/daily-launch-cycle', status: 'error', message: 'Critical failure in daily launch cycle', error: { message: error instanceof Error ? error.message : String(error) } });
     return NextResponse.json(
       { 
         success: false, 

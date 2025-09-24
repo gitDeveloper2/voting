@@ -1,7 +1,25 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { createLaunch, getTodaysLaunchApps, flushLaunchVotes, getActiveLaunch } from '@/lib/launches';
-import { revalidateLaunchPage } from '@/lib/revalidation';
+// Local helper to call an external revalidation endpoint so callers only make one request to this API
+async function revalidateExternal(path: string): Promise<void> {
+  const url = process.env.REVALIDATION_ENDPOINT || 'http://localhost:3000/api/revalidate';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ path }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.warn('[ManageLaunches] External revalidation failed', { status: res.status, statusText: res.statusText, data });
+    }
+  } catch (err) {
+    console.warn('[ManageLaunches] External revalidation error', err);
+  }
+}
 
 // DEPRECATED: This endpoint has been replaced by /api/cron/daily-launch-cycle
 // The new merged system provides cleaner daily cycle management with atomic operations
@@ -112,9 +130,9 @@ export async function GET() {
           // Flush the active launch votes
           const flushResult = await flushLaunchVotes(activeLaunch.date);
           
-          // Call revalidation API after successful vote flushing
+          // Revalidate after successful vote flushing
           if (flushResult.success) {
-            await revalidateLaunchPage();
+            await revalidateExternal('/launch');
           }
           
           results.flushLaunch = {

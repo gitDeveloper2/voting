@@ -392,6 +392,33 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
         </Grid>
+
+        {/* Audit Logs */}
+        <Grid item xs={12} sm={6} lg={3}>
+          <Card 
+            component={Link} 
+            href="/admin/audit"
+            sx={{ 
+              textDecoration: 'none',
+              cursor: 'pointer',
+              '&:hover': { boxShadow: 3 },
+              transition: 'box-shadow 0.2s'
+            }}
+          >
+            <CardContent sx={{ display: 'flex', alignItems: 'center', p: 3 }}>
+              <Activity sx={{ fontSize: 32, color: 'info.main', mr: 2 }} />
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                  Audit Logs
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Cron & revalidation history
+                </Typography>
+              </Box>
+              <ArrowRight color="action" />
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
       {/* Flush Status */}
