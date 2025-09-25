@@ -293,8 +293,12 @@ export async function flushLaunchVotes(date: string): Promise<FlushResult> {
         // Add votes to MongoDB totalVotes
         await db.collection('userapps').updateOne(
           { _id: appObjectId },
-          { $inc: { totalVotes: count } }
+          {
+            $inc: { totalVotes: count },
+            $set: { lastLaunchedDate: date } // <-- only one field to mark launch
+          }
         );
+        
       }
     }
     
