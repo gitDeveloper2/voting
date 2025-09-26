@@ -242,12 +242,39 @@ export async function isAppInActiveLaunch(appId: string): Promise<boolean> {
 export async function getTodaysLaunchApps(): Promise<string[]> {
   const { db } = await connectToDatabase();
   
-  // Get apps that have launchDate set to today
-  const today = new Date().toISOString().split('T')[0];
+  // Build an inclusive date range for "today" in UTC [startOfDayUTC, startOfNextDayUTC)
+  const now = new Date();
+  const startOfDay = new Date(now);
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const startOfNextDay = new Date(startOfDay);
+  startOfNextDay.setUTCDate(startOfNextDay.getUTCDate() + 1);
+  const todayStr = startOfDay.toISOString().split('T')[0];
   
-  const apps = await db.collection('userapps').find({
-    launchDate: today
-  }).toArray();
+  // Support both Date and string storage for launchDate, and filter only approved + verified apps
+  const dateFilter = {
+    $or: [
+      { launchDate: { $gte: startOfDay, $lt: startOfNextDay } }, // Date type
+      { launchDate: todayStr } // legacy string type "YYYY-MM-DD"
+    ]
+  };
+  const approvalFilter = {
+    $or: [
+      { approved: true },
+      { isApproved: true },
+      { status: 'approved' }
+    ]
+  };
+  const verifiedFilter = {
+    $or: [
+      { verified: true },
+      { isVerified: true },
+      { verificationStatus: 'verified' }
+    ]
+  };
+  
+  const apps = await db.collection('userapps')
+    .find({ $and: [dateFilter, approvalFilter, verifiedFilter] })
+    .toArray();
   
   return apps.map(app => app._id.toString());
 }
